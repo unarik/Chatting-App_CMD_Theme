@@ -1,0 +1,82 @@
+{% extends 'base.html' %} {% block content %}
+<div id="room-container">
+    <div id="room-subsection">
+        <h2 id="room-code-display">Room Code: <span>{{room}}</span></h2>
+        <a href="/" id="leave-chat-btn">Exit/Main</a>
+    </div>
+    <div id="chat-room-widget">
+        <div id="messages">
+        </div>
+        <div id="message-box">
+            <input type="text" name="message" id="message-input" placeholder="_ _ _*"/>
+            <!-- onkeyup="typingStatus(`${{user}}`)" -->
+        </div>
+    </div>
+    <script type="text/javascript">
+        var socketio = io();
+        let winActive = true;
+        let msgCount = 0;
+        socketio.on("message", function (message) { createChatItem(message.message, message.sender)});
+        socketio.on("typing", function (name) { statusUpdate(name)});
+        function createChatItem(message, sender) {
+            var messages = document.getElementById("messages");
+            if (sender === "") {
+                content = `<P class="member-activity">${message}<p>`;
+            } else {
+                var senderIsUser = "{{user}}" === sender;
+                var content = `
+                    <p class="mesg">${sender}> ${message}</p>
+            `;}
+            msgCount += 1;
+            // <small class="${senderIsUser ? "muted-text" : "muted-text-white"}">${new Date().toLocaleString()}</small>
+            messages.innerHTML += content;
+            document.title = (winActive===false) ? `CMD (${msgCount})` : 'CMD' ;
+        }
+        function sendMessage() {
+            var msgInput = document.getElementById("message-input");
+            if (msgInput.value === "") return;
+            var msg = msgInput.value;
+            socketio.emit("message", {message:msg});
+            msgInput.value = "";
+        }
+// to make the enter key as send btn
+        document.getElementById("message-input")
+            .addEventListener("keyup", function(event) {
+            event.preventDefault();
+            if (event.keyCode === 13) {
+                sendMessage();
+            }
+        });
+// to make an interactive web title
+        window.addEventListener("blur", () => {
+            winActive = false;
+        });
+        window.addEventListener("focus", () => {
+            winActive = true;
+            msgCount = 0;
+            document.title = "CMD";
+        });
+// for typing status
+        // socketio.on("typing", function (name) { statusUpdate(name)});
+        function statusUpdate(name) {
+            console.log('typing server ..')
+        }
+
+        function typingStatus(name) {
+            console.log('typing client ..')
+            socketio.emit("typing", {user:'naanu'})
+        }
+    </script>
+    {% for message in messages %}
+    <script type="text/javascript">
+        createChatItem("{{message.message}}", "{{message.sender}}")
+    </script>
+    {% endfor %}
+</div>
+{% endblock %}
+
+<!-- this template includes the socketio connection javascript code
+    on the client side. not in depth but in a high-level overview, it
+    listens for message events emitted by the backend where it renders
+    a chat bubble with the message data it recieves. it also emits a
+    message event to the server when the user send a message. -->
